@@ -79,9 +79,18 @@ func TestCompute(t *testing.T) {
 		},
 		{
 			"split traffic to tags",
+			append(newServiceTraffic([]v1alpha1.TrafficTarget{}), newTarget("", "rev-v1", 100, true)),
 			[]string{"--traffic", "@latest=10,rev-v1=90"},
 			[]string{"@latest", "rev-v1"},
-			[]string{"latest", ""},
+			[]string{"", ""},
+			[]int{10, 90},
+		},
+		{
+			"split traffic to tags with '%' suffix",
+			append(newServiceTraffic([]v1alpha1.TrafficTarget{}), newTarget("", "rev-v1", 100, true)),
+			[]string{"--traffic", "@latest=10%,rev-v1=90%"},
+			[]string{"@latest", "rev-v1"},
+			[]string{"", ""},
 			[]int{10, 90},
 		},
 		{
@@ -124,20 +133,29 @@ func TestCompute(t *testing.T) {
 			[]string{"v1", "v2"},
 			[]int{10, 90}, //default value,
 		},
-		// append new non-@latest target
 		{
-			append(newServiceTraffic([]v1alpha1.TrafficTarget{}), newTarget("v1", "echo-v1", 100, false)),
-			[]string{"--tag", "echo-v2=v2", "--traffic", "v1=10,v2=90"},
-			[]string{"echo-v1", "echo-v2"},
-			[]string{"v1", "v2"},
-			[]int{10, 90}, //default value,
-		},
-		{
-			"untag 'latest' tag from '@latst' revision",
+			"untag 'latest' tag from 'echo-v1' revision",
+			append(newServiceTraffic([]v1alpha1.TrafficTarget{}), newTarget("latest", "echo-v1", 100, false)),
 			[]string{"--untag", "latest"},
 			[]string{"echo-v1"},
 			[]string{""},
 			[]int{100},
+		},
+		{
+			"untag 'latest' tag from '@latst' revision",
+			append(newServiceTraffic([]v1alpha1.TrafficTarget{}), newTarget("latest", "", 100, true)),
+			[]string{"--untag", "latest"},
+			[]string{"@latest"},
+			[]string{""},
+			[]int{100},
+		},
+		{
+			"replace revision pointing to 'latest' tag from 'echo-v1' to 'echo-v2' revision",
+			append(newServiceTraffic([]v1alpha1.TrafficTarget{}), newTarget("latest", "echo-v1", 50, false), newTarget("", "echo-v2", 50, false)),
+			[]string{"--untag", "latest", "--tag", "echo-v1=old,echo-v2=latest"},
+			[]string{"echo-v1", "echo-v2"},
+			[]string{"old", "latest"},
+			[]int{50, 50},
 		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
