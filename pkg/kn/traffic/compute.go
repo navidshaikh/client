@@ -192,8 +192,10 @@ func errorRepeatingLatestRevision(forFlag string) error {
 		"is not allowed, use only once with %s flag", latestRevisionRef, forFlag))
 }
 
-// verifies if user has repeated @latest field in --tag or --traffic flags
-func verifyIfLatestRevisionRefRepeated(trafficFlags *flags.Traffic) error {
+// verifyInputSanity checks:
+// - if user has repeated @latest field in --tag or --traffic flags
+// - if provided traffic portion are integers
+func verifyInputSanity(trafficFlags *flags.Traffic) error {
 	var latestRevisionTag = false
 	var latestRevisionTraffic = false
 
@@ -214,7 +216,7 @@ func verifyIfLatestRevisionRefRepeated(trafficFlags *flags.Traffic) error {
 	}
 
 	for _, each := range trafficFlags.RevisionsPercentages {
-		revisionRef, _, err := splitByEqualSign(each)
+		revisionRef, percent, err := splitByEqualSign(each)
 		if err != nil {
 			return err
 		}
@@ -223,16 +225,21 @@ func verifyIfLatestRevisionRefRepeated(trafficFlags *flags.Traffic) error {
 			return errorRepeatingLatestRevision("--traffic")
 		}
 
+		_, err := strconv.Atoi(percent)
+		if err != nil {
+			return errors.New(fmt.Sprintf("error converting given %s to integer value for traffic distribution", percent))
+		}
+
 		if revisionRef == latestRevisionRef {
 			latestRevisionTraffic = true
 		}
+
 	}
 	return nil
 }
 
 func Compute(cmd *cobra.Command, targets []v1alpha1.TrafficTarget, trafficFlags *flags.Traffic) (error, []v1alpha1.TrafficTarget) {
-	// Verify if the input is sane
-	err := verifyIfLatestRevisionRefRepeated(trafficFlags)
+	err := verifyInputSanity(trafficFlags)
 	if err != nil {
 		return err, nil
 	}
@@ -245,7 +252,7 @@ func Compute(cmd *cobra.Command, targets []v1alpha1.TrafficTarget, trafficFlags 
 	}
 
 	for _, each := range trafficFlags.RevisionsTags {
-		revision, tag, _ := splitByEqualSign(each) // err is checked in verifyIfLatestRevisionRefRepeated
+		revision, tag, _ := splitByEqualSign(each) // err is checked in verifyInputSanity
 
 		// Second precedence: Tag latestRevision
 		if revision == latestRevisionRef {
@@ -283,19 +290,15 @@ func Compute(cmd *cobra.Command, targets []v1alpha1.TrafficTarget, trafficFlags 
 		traffic.ResetAllTargetPercent()
 
 		// revisionRef works here as either revision or tag as either can be specified on CLI
-		revisionRef, percent, _ := splitByEqualSign(each) // err is checked in verifyIfLatestRevisionRefRepeated
-		percentInt, err := strconv.Atoi(percent)
-		if err != nil {
-			return errors.New(fmt.Sprintf("error converting given %s to integer value for traffic distribution", percent)), nil
-		}
+		revisionRef, percent, _ := splitByEqualSign(each) // err and percent (for int) is checked in verifyInputSanity
 
 		// fourth precendence: set traffic for latest revision
 		if revisionRef == latestRevisionRef {
 			if traffic.IsLatestRevisionTrue() {
-				traffic.SetTrafficByLatestRevision(percentInt)
+				traffic.SetTrafficByLatestRevision(percent)
 			} else {
 				// if no latestRevision ref is present in traffic block
-				traffic = append(traffic, newTarget("", "", percentInt, true))
+				traffic = append(traffic, newTarget("", "", percent, true))
 			}
 			continue
 		}
@@ -307,13 +310,13 @@ func Compute(cmd *cobra.Command, targets []v1alpha1.TrafficTarget, trafficFlags 
 
 		// first check if given revisionRef is a tag
 		if traffic.IsTagPresent(revisionRef) {
-			traffic.SetTrafficByTag(revisionRef, percentInt)
+			traffic.SetTrafficByTag(revisionRef, percent)
 			continue
 		}
 
 		// check if given revisionRef is a revision
 		if traffic.IsRevisionPresent(revisionRef) {
-			traffic.SetTrafficByRevision(revisionRef, percentInt)
+			traffic.SetTrafficByRevision(revisionRef, percent)
 			continue
 		}
 
@@ -323,7 +326,7 @@ func Compute(cmd *cobra.Command, targets []v1alpha1.TrafficTarget, trafficFlags 
 		//}
 
 		// provided revisionRef isn't present in traffic block, add it
-		traffic = append(traffic, newTarget("", revisionRef, percentInt, false))
+		traffic = append(traffic, newTarget("", revisionRef, percent, false))
 	}
 	// remove any targets having no tags and 0% traffic portion
 	return nil, traffic.RemoveNullTargets()
