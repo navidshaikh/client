@@ -278,54 +278,52 @@ func Compute(cmd *cobra.Command, targets []v1alpha1.TrafficTarget, trafficFlags 
 		traffic = traffic.TagRevision(tag, revision)
 	}
 
-	if cmd.Flags().Changed("traffic") {
+	for _, each := range trafficFlags.RevisionsPercentages {
 		// reset existing traffic portions as what's on CLI is desired state of traffic split portions
 		traffic.ResetAllTargetPercent()
 
-		for _, each := range trafficFlags.RevisionsPercentages {
-			// revisionRef works here as either revision or tag as either can be specified on CLI
-			revisionRef, percent, _ := splitByEqualSign(each) // err is checked in verifyIfLatestRevisionRefRepeated
-			percentInt, err := strconv.Atoi(percent)
-			if err != nil {
-				return errors.New(fmt.Sprintf("error converting given %s to integer value for traffic distribution", percent)), nil
-			}
-
-			// fourth precendence: set traffic for latest revision
-			if revisionRef == latestRevisionRef {
-				if traffic.IsLatestRevisionTrue() {
-					traffic.SetTrafficByLatestRevision(percentInt)
-				} else {
-					// if no latestRevision ref is present in traffic block
-					traffic = append(traffic, newTarget("", "", percentInt, true))
-				}
-				continue
-			}
-
-			// fifth precendence: set traffic for rest of revisions
-			// If in a traffic block, revisionName of one target == tag of another,
-			// one having tag is assigned given percent, as tags are supposed to be unique
-			// and should be used (in this case) to avoid ambiguity
-
-			// first check if given revisionRef is a tag
-			if traffic.IsTagPresent(revisionRef) {
-				traffic.SetTrafficByTag(revisionRef, percentInt)
-				continue
-			}
-
-			// check if given revisionRef is a revision
-			if traffic.IsRevisionPresent(revisionRef) {
-				traffic.SetTrafficByRevision(revisionRef, percentInt)
-				continue
-			}
-
-			// TODO Check at serving level, improve error
-			//if !RevisionExists(revisionRef) {
-			//	return error.New("Revision/Tag %s does not exists in traffic block.")
-			//}
-
-			// provided revisionRef isn't present in traffic block, add it
-			traffic = append(traffic, newTarget("", revisionRef, percentInt, false))
+		// revisionRef works here as either revision or tag as either can be specified on CLI
+		revisionRef, percent, _ := splitByEqualSign(each) // err is checked in verifyIfLatestRevisionRefRepeated
+		percentInt, err := strconv.Atoi(percent)
+		if err != nil {
+			return errors.New(fmt.Sprintf("error converting given %s to integer value for traffic distribution", percent)), nil
 		}
+
+		// fourth precendence: set traffic for latest revision
+		if revisionRef == latestRevisionRef {
+			if traffic.IsLatestRevisionTrue() {
+				traffic.SetTrafficByLatestRevision(percentInt)
+			} else {
+				// if no latestRevision ref is present in traffic block
+				traffic = append(traffic, newTarget("", "", percentInt, true))
+			}
+			continue
+		}
+
+		// fifth precendence: set traffic for rest of revisions
+		// If in a traffic block, revisionName of one target == tag of another,
+		// one having tag is assigned given percent, as tags are supposed to be unique
+		// and should be used (in this case) to avoid ambiguity
+
+		// first check if given revisionRef is a tag
+		if traffic.IsTagPresent(revisionRef) {
+			traffic.SetTrafficByTag(revisionRef, percentInt)
+			continue
+		}
+
+		// check if given revisionRef is a revision
+		if traffic.IsRevisionPresent(revisionRef) {
+			traffic.SetTrafficByRevision(revisionRef, percentInt)
+			continue
+		}
+
+		// TODO Check at serving level, improve error
+		//if !RevisionExists(revisionRef) {
+		//	return error.New("Revision/Tag %s does not exists in traffic block.")
+		//}
+
+		// provided revisionRef isn't present in traffic block, add it
+		traffic = append(traffic, newTarget("", revisionRef, percentInt, false))
 	}
 	// remove any targets having no tags and 0% traffic portion
 	return nil, traffic.RemoveNullTargets()
