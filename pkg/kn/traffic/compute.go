@@ -85,8 +85,7 @@ func (e ServiceTraffic) IsTagPresent(tag string) bool {
 func (e ServiceTraffic) UntagRevision(tag string) {
 	for i, target := range e {
 		if target.Tag == tag {
-			target.Tag = ""
-			e[i] = target
+			e[i].Tag = ""
 			break
 		}
 	}
@@ -148,8 +147,7 @@ func (e ServiceTraffic) SetTrafficByRevision(revision string, percent int) {
 func (e ServiceTraffic) SetTrafficByTag(tag string, percent int) {
 	for i, target := range e {
 		if target.Tag == tag {
-			target.Percent = percent
-			e[i] = target
+			e[i].Percent = percent
 			break
 		}
 	}
@@ -158,17 +156,15 @@ func (e ServiceTraffic) SetTrafficByTag(tag string, percent int) {
 func (e ServiceTraffic) SetTrafficByLatestRevision(percent int) {
 	for i, target := range e {
 		if *target.LatestRevision {
-			target.Percent = percent
-			e[i] = target
+			e[i].Percent = percent
 			break
 		}
 	}
 }
 
 func (e ServiceTraffic) ResetAllTargetPercent() {
-	for i, target := range e {
-		target.Percent = 0
-		e[i] = target
+	for i := range e {
+		e[i].Percent = 0
 	}
 }
 
@@ -253,7 +249,6 @@ func Compute(cmd *cobra.Command, targets []v1alpha1.TrafficTarget, trafficFlags 
 			if traffic.IsTagPresent(tag) {
 				// dont throw error if the tag present == requested tag
 				if traffic.IsTagPresentOnLatestRevision(tag) {
-					fmt.Println("same tag")
 					continue
 				}
 				// dont overwrite tags
@@ -290,7 +285,7 @@ func Compute(cmd *cobra.Command, targets []v1alpha1.TrafficTarget, trafficFlags 
 				return errors.New(fmt.Sprintf("error converting given %s to integer value for traffic distribution", percent)), nil
 			}
 
-			// fourth precendence: set traffic for latest revision
+			// fourth precedence: set traffic for latest revision
 			if revisionRef == latestRevisionRef {
 				if traffic.IsLatestRevisionTrue() {
 					traffic.SetTrafficByLatestRevision(percentInt)
@@ -301,7 +296,7 @@ func Compute(cmd *cobra.Command, targets []v1alpha1.TrafficTarget, trafficFlags 
 				continue
 			}
 
-			// fifth precendence: set traffic for rest of revisions
+			// fifth precedence: set traffic for rest of revisions
 			// If in a traffic block, revisionName of one target == tag of another,
 			// one having tag is assigned given percent, as tags are supposed to be unique
 			// and should be used (in this case) to avoid ambiguity
