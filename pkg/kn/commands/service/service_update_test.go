@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -200,7 +201,7 @@ func TestServiceUpdateRevisionNameGenerated(t *testing.T) {
 
 	template.Name = "foo-asdf"
 
-	// Test prefix added by command
+	// Ensure we don't generate and update the revision name if not asked
 	action, updated, _, err := fakeServiceUpdate(orig, []string{
 		"service", "update", "foo", "--image", "gcr.io/foo/quux:xyzzy", "--namespace", "bar", "--async"}, false)
 	assert.NilError(t, err)
@@ -210,8 +211,7 @@ func TestServiceUpdateRevisionNameGenerated(t *testing.T) {
 
 	template, err = servinglib.RevisionTemplateOfService(updated)
 	assert.NilError(t, err)
-	assert.Assert(t, strings.HasPrefix(template.Name, "foo-"))
-	assert.Assert(t, !(template.Name == "foo-asdf"))
+	assert.Assert(t, cmp.Equal(template.Name, "foo-asdf"))
 }
 
 func TestServiceUpdateRevisionNameCleared(t *testing.T) {
@@ -223,6 +223,7 @@ func TestServiceUpdateRevisionNameCleared(t *testing.T) {
 	}
 	template.Name = "foo-asdf"
 
+	//Ensure we use the default revisionName template shown in flag usage
 	action, updated, _, err := fakeServiceUpdate(orig, []string{
 		"service", "update", "foo", "--image", "gcr.io/foo/quux:xyzzy", "--namespace", "bar", "--revision-name=", "--async"}, false)
 
@@ -233,7 +234,13 @@ func TestServiceUpdateRevisionNameCleared(t *testing.T) {
 
 	template, err = servinglib.RevisionTemplateOfService(updated)
 	assert.NilError(t, err)
-	assert.Assert(t, cmp.Equal(template.Name, ""))
+	assert.Assert(t, template.Name != "foo-asdf")
+	revisionNameParts := strings.Split(template.Name, "-")
+	assert.NilError(t, err)
+	assert.Assert(t, cmp.Equal(3, len(revisionNameParts)))
+	// ensure generation part is int
+	_, err = strconv.Atoi(revisionNameParts[2])
+	assert.NilError(t, err)
 }
 
 func TestServiceUpdateRevisionNameNoMutationNoChange(t *testing.T) {
@@ -244,7 +251,7 @@ func TestServiceUpdateRevisionNameNoMutationNoChange(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	template.Name = "foo-asdf"
+	template.Name = "beforeUpdate-revisionName"
 
 	// Test prefix added by command
 	action, updated, _, err := fakeServiceUpdate(orig, []string{
@@ -256,7 +263,7 @@ func TestServiceUpdateRevisionNameNoMutationNoChange(t *testing.T) {
 
 	template, err = servinglib.RevisionTemplateOfService(updated)
 	assert.NilError(t, err)
-	assert.Equal(t, template.Name, "foo-asdf")
+	assert.Equal(t, template.Name, "beforeUpdate-revisionName")
 }
 
 func TestServiceUpdateMaxMinScale(t *testing.T) {

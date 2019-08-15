@@ -52,6 +52,8 @@ type ResourceFlags struct {
 	Memory string
 }
 
+var revisionNameDefaultTemplate = "{{.Service}}-{{.Random 5}}-{{.Generation}}"
+
 // markFlagMakesRevision indicates that a flag will create a new revision if you
 // set it.
 func (p *ConfigurationEditFlags) markFlagMakesRevision(f string) {
@@ -94,9 +96,11 @@ func (p *ConfigurationEditFlags) addSharedFlags(command *cobra.Command) {
 			"any number of times to set multiple labels. "+
 			"To unset, specify the label name followed by a \"-\" (e.g., name-).")
 	p.markFlagMakesRevision("label")
-	command.Flags().StringVar(&p.RevisionName, "revision-name", "{{.Service}}-{{.Random 5}}-{{.Generation}}",
+
+	command.Flags().StringVar(&p.RevisionName, "revision-name", revisionNameDefaultTemplate,
 		"The revision name to set. Must start with the service name and a dash as a prefix. "+
-			"Empty revision name will result in the server generating a name for the revision. "+
+			"Don't pass flag at all for server to generate revision name."+
+			"Pass empty revision name to use default template of this flag."+
 			"Accepts golang templates, allowing {{.Service}} for the service name, "+
 			"{{.Generation}} for the generation, and {{.Random [n]}} for n random consonants.")
 	p.markFlagMakesRevision("revision-name")
@@ -143,20 +147,24 @@ func (p *ConfigurationEditFlags) Apply(
 		}
 	}
 
-	name, err := servinglib.GenerateRevisionName(p.RevisionName, service)
-	if err != nil {
-		return err
-	}
+	// generate and update revision name only if requested
+	if cmd.Flags().Changed("revision-name") {
+		// empty template hints using default template
+		if p.RevisionName == "" {
+			p.RevisionName = revisionNameDefaultTemplate
+		}
 
-	if p.AnyMutation(cmd) {
+		name, err := servinglib.GenerateRevisionName(p.RevisionName, service)
+		if err != nil {
+			return err
+		}
+
 		err = servinglib.UpdateName(template, name)
-		if err == servinglib.ApiTooOldError && !cmd.Flags().Changed("revision-name") {
-			// Ignore the error if we don't support revision names and nobody
-			// explicitly asked for one.
-		} else if err != nil {
+		if err != nil {
 			return err
 		}
 	}
+
 	if cmd.Flags().Changed("image") {
 		err = servinglib.UpdateImage(template, p.Image)
 		if err != nil {
