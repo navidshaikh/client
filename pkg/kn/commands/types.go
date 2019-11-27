@@ -20,12 +20,15 @@ import (
 	"os"
 	"path/filepath"
 
+	rest "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	sources_kn_v1alpha1 "knative.dev/client/pkg/eventing/sources/v1alpha1"
-	serving_kn_v1alpha1 "knative.dev/client/pkg/serving/v1alpha1"
 	"knative.dev/client/pkg/util"
 	eventing_sources "knative.dev/eventing/pkg/client/clientset/versioned/typed/sources/v1alpha1"
 	serving_v1alpha1_client "knative.dev/serving/pkg/client/clientset/versioned/typed/serving/v1alpha1"
+
+	sources_kn_v1alpha1 "knative.dev/client/pkg/eventing/sources/v1alpha1"
+	restclient_kn "knative.dev/client/pkg/rest"
+	serving_kn_v1alpha1 "knative.dev/client/pkg/serving/v1alpha1"
 )
 
 // CfgFile is Kn's config file is the path for the Kubernetes config
@@ -47,6 +50,7 @@ type KnParams struct {
 	ClientConfig     clientcmd.ClientConfig
 	NewClient        func(namespace string) (serving_kn_v1alpha1.KnServingClient, error)
 	NewSourcesClient func(namespace string) (sources_kn_v1alpha1.KnSourcesClient, error)
+	NewRESTClient    func(namespace string) (restclient_kn.KnRESTClient, error)
 
 	// General global options
 	LogHTTP bool
@@ -57,46 +61,50 @@ type KnParams struct {
 
 func (params *KnParams) Initialize() {
 	if params.NewClient == nil {
-		params.NewClient = params.newClient
+		params.NewClient = params.newServingClient
 	}
+
 	if params.NewSourcesClient == nil {
 		params.NewSourcesClient = params.newSourcesClient
 	}
+
+	if params.NewRESTClient == nil {
+		params.NewRESTClient = params.newRESTClient
+	}
 }
 
-func (params *KnParams) newClient(namespace string) (serving_kn_v1alpha1.KnServingClient, error) {
-	client, err := params.GetConfig()
+func (params *KnParams) newServingClient(namespace string) (serving_kn_v1alpha1.KnServingClient, error) {
+	clientConfig, err := params.prepareClientConfig()
 	if err != nil {
 		return nil, err
 	}
+
+	client, _ := serving_v1alpha1_client.NewForConfig(clientConfig)
 	return serving_kn_v1alpha1.NewKnServingClient(client, namespace), nil
 }
 
 func (params *KnParams) newSourcesClient(namespace string) (sources_kn_v1alpha1.KnSourcesClient, error) {
-	var err error
-
-	if params.ClientConfig == nil {
-		params.ClientConfig, err = params.GetClientConfig()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	clientConfig, err := params.ClientConfig.ClientConfig()
+	clientConfig, err := params.prepareClientConfig()
 	if err != nil {
 		return nil, err
 	}
-	if params.LogHTTP {
-		// TODO: When we update to the newer version of client-go, replace with
-		// config.Wrap() for future compat.
-		clientConfig.WrapTransport = util.NewLoggingTransport
-	}
+
 	client, _ := eventing_sources.NewForConfig(clientConfig)
 	return sources_kn_v1alpha1.NewKnSourcesClient(client, namespace), nil
 }
 
+func (params *KnParams) newRESTClient(namespace string) (restclient_kn.KnRESTClient, error) {
+	clientConfig, err := params.prepareClientConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	client, _ := rest.RESTClientFor(clientConfig)
+	return restclient_kn.NewKnRESTClient(client, namespace), nil
+}
+
 // GetConfig returns Serving Client
-func (params *KnParams) GetConfig() (serving_v1alpha1_client.ServingV1alpha1Interface, error) {
+func (params *KnParams) prepareClientConfig() (*rest.Config, error) {
 	var err error
 
 	if params.ClientConfig == nil {
@@ -116,7 +124,7 @@ func (params *KnParams) GetConfig() (serving_v1alpha1_client.ServingV1alpha1Inte
 		config.WrapTransport = util.NewLoggingTransport
 	}
 
-	return serving_v1alpha1_client.NewForConfig(config)
+	return config, nil
 }
 
 // GetClientConfig gets ClientConfig from KubeCfgPath
