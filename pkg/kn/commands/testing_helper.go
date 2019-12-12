@@ -70,8 +70,8 @@ func CreateSourcesTestKnCommand(cmd *cobra.Command, knParams *KnParams) (*cobra.
 	// create fake sources client
 	fakeEventing := &sources_fake.FakeSourcesV1alpha1{&client_testing.Fake{}}
 	knParams.Output = buf
-	knParams.NewSourcesClient = func(namespace string) (sources_client.KnSourcesClient, error) {
-		return sources_client.NewKnSourcesClient(fakeEventing, FakeNamespace), nil
+	knParams.NewSourcesClient = func(namespace string) (sources_client.KnApiServerSourcesClient, error) {
+		return sources_client.NewKnApiServerSourcesClient(fakeEventing, FakeNamespace), nil
 	}
 	knParams.fixedCurrentNamespace = FakeNamespace
 	knCommand := NewKnTestCommand(cmd, knParams)

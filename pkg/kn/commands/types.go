@@ -50,7 +50,7 @@ type KnParams struct {
 	KubeCfgPath      string
 	ClientConfig     clientcmd.ClientConfig
 	NewServingClient func(namespace string) (serving_kn_v1alpha1.KnServingClient, error)
-	NewSourcesClient func(namespace string) (sources_kn_v1alpha1.KnSourcesClient, error)
+	NewSourcesClient func(namespace string) (sources_kn_v1alpha1.KnApiServerSourcesClient, error)
 	NewDynamicClient func(namespace string) (dynamic_kn.KnDynamicClient, error)
 
 	// General global options
@@ -84,14 +84,14 @@ func (params *KnParams) newServingClient(namespace string) (serving_kn_v1alpha1.
 	return serving_kn_v1alpha1.NewKnServingClient(client, namespace), nil
 }
 
-func (params *KnParams) newSourcesClient(namespace string) (sources_kn_v1alpha1.KnSourcesClient, error) {
+func (params *KnParams) newSourcesClient(namespace string) (sources_kn_v1alpha1.KnApiServerSourcesClient, error) {
 	restConfig, err := params.prepareRestConfig()
 	if err != nil {
 		return nil, err
 	}
 
 	client, _ := eventing_sources.NewForConfig(restConfig)
-	return sources_kn_v1alpha1.NewKnSourcesClient(client, namespace), nil
+	return sources_kn_v1alpha1.NewKnApiServerSourcesClient(client, namespace), nil
 }
 
 func (params *KnParams) newDynamicClient(namespace string) (dynamic_kn.KnDynamicClient, error) {
