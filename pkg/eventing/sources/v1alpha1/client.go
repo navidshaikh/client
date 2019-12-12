@@ -28,8 +28,14 @@ type KnSourcesClient interface {
 	// Namespace in which this client is operating for
 	Namespace() string
 
+	// Get ApiServerSource
+	GetApiServerSource(name string) (*v1alpha1.ApiServerSource, error)
+
 	// Get an ApiServerSource by object
 	CreateApiServerSource(apisvrsrc *v1alpha1.ApiServerSource) (*v1alpha1.ApiServerSource, error)
+
+	// Update APIServerSource
+	UpdateApiServerSource(src *v1alpha1.ApiServerSource) error
 
 	// Delete an ApiServerSource by name
 	DeleteApiServerSource(name string) error
@@ -51,6 +57,15 @@ func NewKnSourcesClient(client client_v1alpha1.SourcesV1alpha1Interface, namespa
 	}
 }
 
+// GetApiServerSource finds ApiServerSource object by name if present
+func (c *knSourcesClient) GetApiServerSource(name string) (*v1alpha1.ApiServerSource, error) {
+	src, err := c.client.ApiServerSources(c.namespace).Get(name, apis_v1.GetOptions{})
+	if err != nil {
+		return nil, kn_errors.GetError(err)
+	}
+	return src, nil
+}
+
 //CreateApiServerSource is used to create an instance of ApiServerSource
 func (c *knSourcesClient) CreateApiServerSource(apisvrsrc *v1alpha1.ApiServerSource) (*v1alpha1.ApiServerSource, error) {
 	ins, err := c.client.ApiServerSources(c.namespace).Create(apisvrsrc)
@@ -64,6 +79,15 @@ func (c *knSourcesClient) CreateApiServerSource(apisvrsrc *v1alpha1.ApiServerSou
 func (c *knSourcesClient) DeleteApiServerSource(name string) error {
 	err := c.client.ApiServerSources(c.namespace).Delete(name, &apis_v1.DeleteOptions{})
 	return err
+}
+
+//UpdateApiServerSource
+func (c *knSourcesClient) UpdateApiServerSource(source *v1alpha1.ApiServerSource) error {
+	_, err := c.client.ApiServerSources(c.namespace).Update(source)
+	if err != nil {
+		return kn_errors.GetError(err)
+	}
+	return nil
 }
 
 // Return the client's namespace
