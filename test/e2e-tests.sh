@@ -43,4 +43,4 @@ export PATH=$PATH:${REPO_ROOT_DIR}
 
 # go_test_e2e -timeout=30m ./test/e2e || fail_test
 # success
-bash -x $(dirname $0)/tekton-tests.sh || kubectl describe pipelinerun -n tkn-kn0
+bash -x $(dirname $0)/tekton-tests.sh
