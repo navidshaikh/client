@@ -30,16 +30,17 @@
 # installed in the Kubernetes cluster, and all the tests will run against
 # Knative Serving / Eventing of this specific version.
 
-source $(dirname $0)/e2e-common.sh
+#source $(dirname $0)/e2e-common.sh
 
 # Add local dir to have access to built kn
 export PATH=$PATH:${REPO_ROOT_DIR}
 
 # Script entry point.
 
-initialize $@
+# initialize $@
 
-header "Running tests for Knative Serving $KNATIVE_SERVING_VERSION and Eventing $KNATIVE_EVENTING_VERSION"
+# header "Running tests for Knative Serving $KNATIVE_SERVING_VERSION and Eventing $KNATIVE_EVENTING_VERSION"
 
-go_test_e2e -timeout=30m ./test/e2e || fail_test
-success
+# go_test_e2e -timeout=30m ./test/e2e || fail_test
+# success
+bash -x $(dirname $0)/tekton-tests.sh || kubectl describe pipelinerun -n tkn-kn0
