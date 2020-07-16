@@ -106,44 +106,15 @@ func run(args []string) error {
 	}
 }
 
-// Get only the args provided but no options. The extraction
-// process is a bit tricky as Cobra doesn't provide such
-// functionality out of the box
+// Get only the args provided but no options
 func stripFlags(args []string) ([]string, error) {
 	// Store all command
 	commandsFound := &[]string{}
 
-	// Use a canary command that allows all options and only extracts
-	// commands. Doesn't work with arbitrary boolean flags but is good enough
-	// for us here
-	extractCommand := cobra.Command{
-		Run: func(cmd *cobra.Command, args []string) {
-			for _, arg := range args {
-				*commandsFound = append(*commandsFound, arg)
-			}
-		},
-		SilenceErrors: true,
-		SilenceUsage:  true,
-	}
-
-	// No help and usage functions to prin
-	extractCommand.SetHelpFunc(func(*cobra.Command, []string) {})
-	extractCommand.SetUsageFunc(func(*cobra.Command) error { return nil })
-
-	// Filter out --help and -h options to avoid special treatment which we don't
-	// need here
-	extractCommand.SetArgs(filterHelpOptions(args))
-
-	// Adding all global flags here
-	config.AddBootstrapFlags(extractCommand.Flags())
-
-	// Allow all options
-	extractCommand.FParseErrWhitelist = cobra.FParseErrWhitelist{UnknownFlags: true}
-
-	// Execute to get to the command args
-	err := extractCommand.Execute()
-	if err != nil {
-		return nil, err
+	for _, arg := range args {
+		if !strings.HasPrefix(arg, "-") {
+			*commandsFound = append(*commandsFound, arg)
+		}
 	}
 	return *commandsFound, nil
 }
@@ -157,17 +128,6 @@ func argsWithoutCommands(cmdArgs []string, pluginCommandsParts []string) []strin
 			continue
 		}
 		ret = append(ret, arg)
-	}
-	return ret
-}
-
-// Remove all help options
-func filterHelpOptions(args []string) []string {
-	var ret []string
-	for _, arg := range args {
-		if arg != "-h" && arg != "--help" {
-			ret = append(ret, arg)
-		}
 	}
 	return ret
 }
