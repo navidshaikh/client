@@ -39,9 +39,6 @@ const (
 func TestTektonPipeline(t *testing.T) {
 	it, err := test.NewKnTest()
 	assert.NilError(t, err)
-	defer func() {
-		assert.NilError(t, it.Teardown())
-	}()
 
 	kubectl := test.NewKubectl(it.Namespace())
 	basedir := test.CurrentDir(t) + "/../resources/tekton"
